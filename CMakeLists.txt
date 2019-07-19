@@ -1,33 +1,29 @@
 cmake_minimum_required (VERSION 3.10.0)
 project(IDATag)
 
-set(CMAKE_INCLUDE_CURRENT_DIR ON)
-set(CMAKE_AUTOMOC ON)
-
-set(CMAKE_PREFIX_PATH "C:\\Qt\\Qt5.3.0\\5.3\\msvc2013_64")
-find_package(Qt5 COMPONENTS Core Widgets Gui REQUIRED)
-
-get_filename_component(root_dir     ${CMAKE_CURRENT_SOURCE_DIR} ABSOLUTE)
-get_filename_component(bin_d_dir    ${root_dir}/bin/${PROJECT_NAME}_debug_${ARCH} ABSOLUTE)
-get_filename_component(bin_dir      ${root_dir}/bin/${PROJECT_NAME}_${ARCH} ABSOLUTE)
-
 if("$ENV{IDASDK}" STREQUAL "")
     message(FATAL_ERROR "missing IDASDK environment variable")
 endif()
 get_filename_component(IDASDK "$ENV{IDASDK}" ABSOLUTE)
 message("-- Using IDASDK=${IDASDK}")
 
-
 if("$ENV{IDATARGET}" STREQUAL "")
     message(FATAL_ERROR "missing IDATARGET environment variable")
 endif()
 message("-- Using IDATARGET=$ENV{IDATARGET}")
 
-if("$ENV{QTHEADER}" STREQUAL "")
-    message(FATAL_ERROR "missing QTHEADER environment variable")
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
+set(CMAKE_AUTOMOC ON)
+
+if("$ENV{IDATARGET}" STREQUAL "IDA64WIN" OR "$ENV{IDATARGET}" STREQUAL "IDA32WIN")
+	set(CMAKE_PREFIX_PATH "C:\\Qt\\Qt5.6.3\\5.6.3\\msvc2015_64")
+elseif("$ENV{IDATARGET}" STREQUAL "IDA64NUX" OR "$ENV{IDATARGET}" STREQUAL "IDA32NUX")
+	set(CMAKE_PREFIX_PATH "/opt/Qt/5.6.3/gcc_64")
+	set(CMAKE_C_COMPILER /usr/bin/gcc-8)
+	set(CMAKE_CXX_COMPILER /usr/bin/g++-8)
 endif()
-get_filename_component(QTHEADER "$ENV{QTHEADER}" ABSOLUTE)
-message("-- Using QTHEADER=$ENV{QTHEADER}")
+
+find_package(Qt5 COMPONENTS Core Widgets Gui REQUIRED)
 
 add_library(${PROJECT_NAME}  SHARED
 	src/idatag.hpp
@@ -56,15 +52,14 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 	LIBRARY_OUTPUT_DIRECTORY_DEBUG          "${CMAKE_BINARY_DIR}/bin"
 	LIBRARY_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/bin"
 	LIBRARY_OUTPUT_DIRECTORY_RELEASE        "${CMAKE_BINARY_DIR}/bin"
-   )
+)
 
 target_include_directories(${PROJECT_NAME} PRIVATE ";${IDASDK}/include")
-target_include_directories(${PROJECT_NAME} PRIVATE ";${QTHEADER}")
+target_include_directories(${PROJECT_NAME} PRIVATE ";${CMAKE_PREFIX_PATH}/include")
 
 set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 17 CXX_EXTENSIONS OFF)
 
-
-if("$ENV{IDATARGET}" STREQUAL "IDA64")
+if("$ENV{IDATARGET}" STREQUAL "IDA64WIN")
     target_compile_definitions(${PROJECT_NAME} PRIVATE 
 		__NT__
 		__IDP__
@@ -90,7 +85,7 @@ if("$ENV{IDATARGET}" STREQUAL "IDA64")
 	# C4244 : IDA SDK => conversion size_t to int (idp.hpp)
 	set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_FLAGS "/wd4267 /wd4244")
 
-elseif("$ENV{IDATARGET}" STREQUAL "IDA32")
+elseif("$ENV{IDATARGET}" STREQUAL "IDA32WIN")
 	target_compile_definitions(${PROJECT_NAME} PRIVATE 
 		__NT__
 		__IDP__
@@ -113,5 +108,48 @@ elseif("$ENV{IDATARGET}" STREQUAL "IDA32")
 	# C4267 : IDA SDK => conversion size_t to int (pro.h)
 	# C4244 : IDA SDK => conversion size_t to int (idp.hpp)
 	set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_FLAGS "/wd4267 /wd4244")
+
+
+elseif("$ENV{IDATARGET}" STREQUAL "IDA32NUX")
+	target_compile_definitions(${PROJECT_NAME} PRIVATE 
+		__LINUX__
+		__IDP__
+		__X64__
+		USE_DANGEROUS_FUNCTIONS
+		USE_STANDARD_FILE_FUNCTIONS
+		__QT__
+		QT_NAMESPACE=QT
+	)
+	target_link_libraries(${PROJECT_NAME} PRIVATE
+		"${IDASDK}/lib/x64_linux_gcc_32/libida.so"
+		"${IDASDK}/../libQt5Core.so.5"
+		"${IDASDK}/../libQt5Widgets.so.5"
+		"${IDASDK}/../libQt5Gui.so.5"
+	)
+	target_link_libraries(${PROJECT_NAME} PRIVATE
+		stdc++fs
+	)
+
+elseif("$ENV{IDATARGET}" STREQUAL "IDA64NUX")
+	target_compile_definitions(${PROJECT_NAME} PRIVATE 
+		__LINUX__
+		__IDP__
+		__X64__
+		__EA64__
+		USE_DANGEROUS_FUNCTIONS
+		USE_STANDARD_FILE_FUNCTIONS
+		__QT__
+		QT_NAMESPACE=QT
+	)
+	target_link_libraries(${PROJECT_NAME} PRIVATE
+		"${IDASDK}/lib/x64_linux_gcc_64/libida64.so"
+		"${IDASDK}/../libQt5Core.so.5"
+		"${IDASDK}/../libQt5Widgets.so.5"
+		"${IDASDK}/../libQt5Gui.so.5"
+	)
+	set_target_properties(${PROJECT_NAME} PROPERTIES SUFFIX "64.so")
+	target_link_libraries(${PROJECT_NAME} PRIVATE
+		stdc++fs
+	)
 
 endif()

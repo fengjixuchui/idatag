@@ -1,10 +1,10 @@
 #pragma once
 
-#include <QtWidgets/qstyleditemdelegate.h>
-#include <QtWidgets/qwidget.h>
-#include <QtGui/qpainter.h>
-#include <QtCore/qmetatype.h>
-#include <QtWidgets/qlistwidget.h>
+#include <QtWidgets/QStyledItemDelegate>
+#include <QtWidgets/QWidget>
+#include <QtGui/QPainter>
+#include <QtCore/QMetaType>
+#include <QtWidgets/QListWidget>
 
 #include "model.hpp"
 #include "view.hpp"
@@ -49,12 +49,10 @@ private:
 	Idatag_palette* myPalette;
 	Idatag_proxy* myProxy;
 	QWidget* parent;
-	Idatag_view* g_myView;
-	QTableView* myView;
 	Idatag_configuration* myConfiguration;
 
 public:
-	Idatag_delegate_tag(QWidget*, Idatag_model*, Idatag_view*, Idatag_configuration*, Idatag_proxy*);
+	Idatag_delegate_tag(QWidget*, Idatag_model*, Idatag_configuration*, Idatag_proxy*);
 	QWidget* createEditor(QWidget* parent, const QStyleOptionViewItem& option, const QModelIndex& index) const;
 	void paint(QPainter *painter, const QStyleOptionViewItem& option, const QModelIndex& index) const override;
 	void setModelData(QWidget *editor, QAbstractItemModel *model, const QModelIndex &index) const;
@@ -70,6 +68,6 @@ private:
 	bool lock;
 public:
 	Idatag_editor(QWidget*);
-	void Idatag_editor::OnEdit();
+	void OnEdit();
 	void locker();
 };

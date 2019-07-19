@@ -15,6 +15,7 @@ bool idaapi run(size_t)
 				myHook_IDB = new Idatag_hook_idb();
 				myHook_UI = new Idatag_hook_ui();
 				myHook_IDP = new Idatag_hook_idp();
+				myHook_CView = new Idatag_hook_cview();
 
 				if (myModel == NULL) return true;
 
@@ -46,7 +47,7 @@ bool idaapi run(size_t)
 
 		myView = new Idatag_view((QWidget *)ida_widget, myModel, myConfiguration);
 		if (myView == NULL) return false;
-		display_widget(ida_widget, WOPN_TAB);
+		display_widget(ida_widget, WOPN_DP_TAB);
 	}
 	else
 	{
@@ -71,12 +72,12 @@ int idaapi init(void)
 
 void idaapi term(void)
 {
-	msg("\n[IDATag] Unloading plugin. Tags backup in progress...");
-	if(myModel != NULL) myModel->export_tags();
+	msg("\n[IDATag] Unloading plugin.");
 	
 	if(myHook_IDP != NULL) myHook_IDP->~Idatag_hook_idp();
 	if(myHook_IDB != NULL) myHook_IDB->~Idatag_hook_idb();
 	if(myHook_UI != NULL) myHook_UI->~Idatag_hook_ui();
+	if(myHook_CView != NULL) myHook_CView->~Idatag_hook_cview();
 	
 	if(myConfiguration != NULL) myConfiguration->uninstall_menu_configuration();
 }

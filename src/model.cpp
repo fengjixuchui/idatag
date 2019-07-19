@@ -29,8 +29,8 @@ const int Idatag_model::count_stats_tags() const
 
 void Idatag_model::print_stats_model() 
 {
-	size_t nb_tags = count_stats_tags();
-	size_t nb_offsets = this->mydata.size();
+	int nb_tags = count_stats_tags();
+	int nb_offsets = this->mydata.size();
 	msg("\n[IDATag] Tags : %d on %d offsets!\n", nb_tags, nb_offsets);
 }
 
@@ -112,7 +112,7 @@ QVariant Idatag_model::data(const QModelIndex &index, int role) const
 	switch(column) 
 	{
 		case 0:
-			return offset->get_rva();
+			return QVariant((unsigned long long)offset->get_rva());
 		case 1:
 			name = offset->get_name();
 			qname = QString::fromStdString(name);
@@ -153,6 +153,21 @@ Offset* Idatag_model::get_offset_byrva(const uint64_t& rva)
 
 	Offset* offset = new Offset(rva);
 	add_offset(*offset);
+
+	for (auto& offset_it : this->mydata)
+	{
+		if (offset_it.get_rva() == rva)
+		{
+			return &offset_it;
+		}
+	}
+
+	return NULL;
+}
+
+Offset* Idatag_model::get_offset(const uint64_t& rva)
+{
+	if (!check_rva(rva)) return NULL;
 
 	for (auto& offset_it : this->mydata)
 	{
@@ -415,6 +430,16 @@ void Idatag_model::export_tags() const
 	}
 }
 
+ea_t Idatag_model::is_in_func(ea_t ea) const
+{
+	func_t* func;
+	func = get_func(ea);
+
+	if (func == NULL) return BADADDR;
+
+	return func->start_ea;
+}
+
 Offset::Offset()
 {
 	this->rva = 0;
@@ -437,6 +462,18 @@ Offset::Offset(const uint64_t& rva, const std::string& name)
 Offset::Offset(const uint64_t& rva)
 {
 	this->rva = rva;
+	this->name = "";
+}
+
+const std::string Offset::get_tags_tostr() const
+{
+	std::string tagstr;
+	for (const auto & tag : this->tags)
+	{
+		tagstr += tag.get_label();
+		tagstr += " ";
+	}
+	return tagstr;
 }
 
 bool Offset::check_already_tagged(std::string& label) const

@@ -1,9 +1,12 @@
 #pragma once
 
-#include "QtGui/qcolor.h"
+#include "QtGui/QColor"
 
 #include <ctime>
 #include <cstdlib>
+#include <map>
+#include <vector>
+#include <cmath>
 
 class Idatag_palette {
 private:

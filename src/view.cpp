@@ -19,6 +19,7 @@ Idatag_view::Idatag_view(QWidget* parent, Idatag_model* myModel, Idatag_configur
 	createActions();
 
 	this->tb->setSelectionBehavior(QAbstractItemView::SelectRows);
+	this->selectionModel = this->tb->selectionModel();
 
 	connect(this->tb, &Idatag_view::customContextMenuRequested, this, &Idatag_view::customMenuRequested);
 
@@ -30,7 +31,7 @@ Idatag_view::Idatag_view(QWidget* parent, Idatag_model* myModel, Idatag_configur
 
 	Idatag_delegate_rva* delegate_rva = new Idatag_delegate_rva(this->parent, this->myModel, this->myConfiguration);
 	Idatag_delegate_name* delegate_name = new Idatag_delegate_name(this->parent, this->myModel, this->myConfiguration);
-	Idatag_delegate_tag* delegate_tag = new Idatag_delegate_tag(this->parent, this->myModel, this, this->myConfiguration, this->myProxy);
+	Idatag_delegate_tag* delegate_tag = new Idatag_delegate_tag(this->parent, this->myModel, this->myConfiguration, this->myProxy);
 
 	this->tb->setItemDelegateForColumn(0, delegate_rva);
 	this->tb->setItemDelegateForColumn(1, delegate_name);
@@ -49,6 +50,17 @@ Idatag_view::Idatag_view(QWidget* parent, Idatag_model* myModel, Idatag_configur
 	this->vheader->setSectionResizeMode(QHeaderView::Fixed);
 	this->vheader->setDefaultSectionSize(24);
 
+	this->hfuncl = new QLabel();
+	this->hfuncl->setText("Function tags: ");
+	this->hoffsetl = new QLabel();
+	this->hoffsetl->setText("Offset tags: ");
+	this->funcl = new QLabel();
+	this->funcl->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
+	this->funcl->setText("-");
+	this->offsetl = new QLabel();
+	this->offsetl->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
+	this->offsetl->setText("-");
+
 	this->cbox = new Idatag_cbox();
 	this->cbox->setCheckState(Qt::Checked);
 	this->cbox->setText("Keep tagged offsets only");
@@ -64,9 +76,13 @@ Idatag_view::Idatag_view(QWidget* parent, Idatag_model* myModel, Idatag_configur
 
 	this->layout = new QGridLayout(parent);
 	this->layout->addWidget(this->tb, 0, 0, 1, 0);
-	this->layout->addWidget(this->tfl, 1, 0);
-	this->layout->addWidget(this->tf, 1, 1);
-	this->layout->addWidget(this->cbox, 1, 2);
+	this->layout->addWidget(this->hfuncl, 1, 0);
+	this->layout->addWidget(this->funcl, 1, 1);
+	this->layout->addWidget(this->hoffsetl, 2, 0);
+	this->layout->addWidget(this->offsetl, 2, 1);
+	this->layout->addWidget(this->tfl, 3, 0);
+	this->layout->addWidget(this->tf, 3, 1);
+	this->layout->addWidget(this->cbox, 3, 2);
 
 	connect(this->tb, &QTableView::doubleClicked, this, &Idatag_view::OnNavigate);
 
@@ -111,23 +127,23 @@ void Idatag_view::customMenuRequested(QPoint pos)
 
 void Idatag_view::createActions()
 {
+	this->add_tag = new QAction(tr("&Add tags"), this);
+	this->add_tag->setStatusTip(tr("Add tags to offset"));
+	connect(this->add_tag, &QAction::triggered, this, &Idatag_view::OnAction_add_tag);
+
 	this->export_tag = new QAction(tr("&Export tags"), this);
-	this->export_tag->setShortcuts(QKeySequence::SaveAs);
 	this->export_tag->setStatusTip(tr("Export tags to file"));
 	connect(this->export_tag, &QAction::triggered, this, &Idatag_view::OnAction_export_tag);
 
 	this->import_tag = new QAction(tr("&Import tags"), this);
-	this->import_tag->setShortcuts(QKeySequence::Open);
 	this->import_tag->setStatusTip(tr("Import tags from file"));
 	connect(this->import_tag, &QAction::triggered, this, &Idatag_view::OnAction_import_tag);
 
 	this->filter_feeder = new QAction(tr("&Filter by signature"), this);
-	this->filter_feeder->setShortcuts(QKeySequence::Preferences);
 	this->filter_feeder->setStatusTip(tr("Filter tags by signature"));
 	connect(this->filter_feeder, &QAction::triggered, this, &Idatag_view::OnAction_filter_feeder);
 
 	this->paint_tag = new QAction(tr("&Paint offsets"), this);
-	this->paint_tag->setShortcuts(QKeySequence::Refresh);
 	this->paint_tag->setStatusTip(tr("Paint offsets in code"));
 	connect(this->paint_tag, &QAction::triggered, this, &Idatag_view::OnAction_paint_tag);
 
@@ -136,11 +152,31 @@ void Idatag_view::createActions()
 	connect(this->reset_filter, &QAction::triggered, this, &Idatag_view::OnAction_reset_filter);
 
 	this->contextual_menu = new QMenu();
+	this->contextual_menu->addAction(this->add_tag);
 	this->contextual_menu->addAction(this->export_tag);
 	this->contextual_menu->addAction(this->import_tag);
 	this->contextual_menu->addAction(this->filter_feeder);
 	this->contextual_menu->addAction(this->paint_tag);
 	this->contextual_menu->addAction(this->reset_filter);
+}
+
+void Idatag_view::OnAction_add_tag()
+{
+	QModelIndexList indexes_p = this->selectionModel->selectedIndexes();
+	if (indexes_p.empty())
+	{
+		msg("\n[IDATag] No offset selected");
+		return;
+	}
+	
+	QModelIndexList indexes_s;
+	for (const auto& index : indexes_p)
+	{
+		indexes_s.push_back(myProxy->mapToSource(index));
+	}
+
+	this->wnd_context_view = new Idatag_context_view(indexes_s);
+	this->wnd_context_view->show();
 }
 
 void Idatag_view::OnAction_export_tag()
@@ -161,7 +197,7 @@ void Idatag_view::OnAction_filter_feeder()
 
 void Idatag_view::OnAction_paint_tag()
 {
-	msg("\nPaint not yet implemented.");
+	msg("\n[IDATag] Paint not yet implemented.");
 }
 
 void Idatag_view::OnAction_reset_filter()
@@ -291,6 +327,15 @@ void Idatag_view::OnSearch()
 	this->tf->selectAll();
 }
 
+void Idatag_view::set_tag_helper(std::string tags_off, std::string tags_func)
+{
+	QString qtags_func = QString::fromStdString(tags_func);
+	QString qtags_off = QString::fromStdString(tags_off);
+
+	this->funcl->setText(qtags_func);
+	this->offsetl->setText(qtags_off);
+}
+
 void Idatag_context_disas::context_menu_add_tags()
 {
 	QString qinput = this->tags_input->text();
@@ -306,18 +351,17 @@ void Idatag_context_disas::context_menu_add_tags()
 	if (input.find_first_not_of(" ") != std::string::npos)
 	{
 		QStringList labels = this->tags_input->text().split(" ");
+		std::string user = myConfiguration->get_username_configuration();
+		std::string feeder = user;
 		for (const auto & qlabel : labels)
 		{
-			std::string user = myConfiguration->get_username_configuration();
-			std::string feeder = user;
-
 			std::string label = qlabel.toStdString();
 			Tag tag = Tag(label, feeder);
 			
 			this->offset->add_tag(tag);
 
 			std::string autofeed = "IDATag";
-			Tag tag_user = Tag(myConfiguration->get_username_configuration(), autofeed);
+			Tag tag_user = Tag(user, autofeed);
 			this->offset->add_tag(tag_user);
 
 			myModel->add_feeder(feeder);
@@ -349,11 +393,11 @@ Idatag_context_disas::Idatag_context_disas(action_activation_ctx_t* ctx)
 	this->rva = ctx->cur_ea;
 	if (myConfiguration->get_address_width_configuration() == 16)
 	{
-		snprintf(rva_str, 19, "0x%016llX", rva);
+		snprintf(rva_str, 19, "0x%016llX", (unsigned long long)rva);
 	}
 	else
 	{
-		snprintf(rva_str, 19, "0x%08llX", rva);
+		snprintf(rva_str, 19, "0x%08llX", (unsigned long long)rva);
 	}
 	this->lbl_rva = new QLabel(rva_str);
 	
@@ -392,6 +436,8 @@ void Idatag_context_name::context_menu_add_tags()
 
 	if (input.find_first_not_of(" ") != std::string::npos)
 	{
+		std::string user = myConfiguration->get_username_configuration();
+		std::string feeder = user;
 		for (const auto & name : this->name_selected) {
 			Offset* offset = myModel->get_offset_byrva(name);
 
@@ -404,8 +450,6 @@ void Idatag_context_name::context_menu_add_tags()
 			QStringList labels = this->tags_input->text().split(" ");
 			for (const auto & qlabel : labels)
 			{
-				std::string user = myConfiguration->get_username_configuration();
-				std::string feeder = user;
 
 				std::string label = qlabel.toStdString();
 				Tag tag = Tag(label, feeder);
@@ -413,7 +457,7 @@ void Idatag_context_name::context_menu_add_tags()
 				offset->add_tag(tag);
 
 				std::string autofeed = "IDATag";
-				Tag tag_user = Tag(myConfiguration->get_username_configuration(), autofeed);
+				Tag tag_user = Tag(user, autofeed);
 				offset->add_tag(tag_user);
 
 				myModel->add_feeder(feeder);
@@ -454,11 +498,11 @@ Idatag_context_name::Idatag_context_name(action_activation_ctx_t* ctx)
 		char rva_str[20];
 		if (myConfiguration->get_address_width_configuration() == 16)
 		{
-			snprintf(rva_str, 19, "0x%016llX", this->name_selected.front());
+			snprintf(rva_str, 19, "0x%016llX", (unsigned long long)this->name_selected.front());
 		}
 		else
 		{
-			snprintf(rva_str, 19, "0x%08llX", this->name_selected.front());
+			snprintf(rva_str, 19, "0x%08llX", (unsigned long long)this->name_selected.front());
 		}
 		this->lbl_rva = new QLabel(rva_str);
 
@@ -497,6 +541,8 @@ void Idatag_context_func::context_menu_add_tags()
 
 	if (input.find_first_not_of(" ") != std::string::npos)
 	{
+		std::string user = myConfiguration->get_username_configuration();
+		std::string feeder = user;
 		for (const auto & func : this->func_selected) {
 			Offset* offset = myModel->get_offset_byrva(func->start_ea);
 
@@ -509,8 +555,6 @@ void Idatag_context_func::context_menu_add_tags()
 			QStringList labels = this->tags_input->text().split(" ");
 			for (const auto & qlabel : labels)
 			{
-				std::string user = myConfiguration->get_username_configuration();
-				std::string feeder = user;
 
 				std::string label = qlabel.toStdString();
 				Tag tag = Tag(label, feeder);
@@ -518,7 +562,7 @@ void Idatag_context_func::context_menu_add_tags()
 				offset->add_tag(tag);
 
 				std::string autofeed = "IDATag";
-				Tag tag_user = Tag(myConfiguration->get_username_configuration(), autofeed);
+				Tag tag_user = Tag(user, autofeed);
 				offset->add_tag(tag_user);
 
 				myModel->add_feeder(feeder);
@@ -559,11 +603,11 @@ Idatag_context_func::Idatag_context_func(action_activation_ctx_t* ctx)
 		char rva_str[20];
 		if (myConfiguration->get_address_width_configuration() == 16)
 		{
-			snprintf(rva_str, 19, "0x%016llX", this->func_selected.front()->start_ea);
+			snprintf(rva_str, 19, "0x%016llX", (unsigned long long)this->func_selected.front()->start_ea);
 		}
 		else
 		{
-			snprintf(rva_str, 19, "0x%08llX", this->func_selected.front()->start_ea);
+			snprintf(rva_str, 19, "0x%08llX", (unsigned long long)this->func_selected.front()->start_ea);
 		}
 		this->lbl_rva = new QLabel(rva_str);
 
@@ -594,4 +638,198 @@ Idatag_context_func::Idatag_context_func(action_activation_ctx_t* ctx)
 
 	this->sc_ok = new QShortcut(Qt::Key_Enter, this);
 	this->connect(this->sc_ok, &QShortcut::activated, this, &Idatag_context_func::context_menu_add_tags);
+}
+
+Idatag_context_view::Idatag_context_view(QModelIndexList indexes)
+{
+	this->setAttribute(Qt::WA_DeleteOnClose);
+	this->menu_layout = new QGridLayout(this);
+	this->setWindowTitle("[IDATag] Add tags...");
+	this->btn_menu_ok = new QPushButton("OK");
+	this->btn_menu_cancel = new QPushButton("Cancel");
+	this->tags_input = new QLineEdit();
+	this->setModal(true);
+
+	std::vector<int> rows;
+	QModelIndex idx;
+	for (const auto & index : indexes)
+	{
+		if (std::find(rows.begin(), rows.end(), index.row()) == rows.end())
+		{
+			rows.push_back(index.row());
+		}
+	}
+
+	for (const auto & row : rows)
+	{
+		this->offset_selected.push_back(myModel->get_offset_byindex(row));
+	}
+
+	if (this->offset_selected.size() == 1)
+	{
+		char rva_str[20];
+		if (myConfiguration->get_address_width_configuration() == 16)
+		{
+			snprintf(rva_str, 19, "0x%016llX", (unsigned long long)this->offset_selected.front()->get_rva());
+		}
+		else
+		{
+			snprintf(rva_str, 19, "0x%08llX", (unsigned long long)this->offset_selected.front()->get_rva());
+		}
+		this->lbl_rva = new QLabel(rva_str);
+		this->lbl_name = new QLabel(this->offset_selected.front()->get_name().c_str());
+	}
+	else {
+		char off_str[50];
+		snprintf(off_str, 49, "%zu offsets selected", this->offset_selected.size());
+		this->lbl_rva = new QLabel(off_str);
+		this->lbl_name = new QLabel();
+	}
+
+	this->menu_layout->addWidget(lbl_rva, 0, 0);
+	this->menu_layout->addWidget(lbl_name, 0, 1);
+
+	this->menu_layout->addWidget(tags_input, 1, 0, 1, 2);
+
+	this->menu_layout->addWidget(btn_menu_ok, 2, 0);
+	this->menu_layout->addWidget(btn_menu_cancel, 2, 1);
+
+	this->connect(btn_menu_ok, &QPushButton::clicked, this, &Idatag_context_view::context_menu_add_tags);
+	this->connect(btn_menu_cancel, &QPushButton::clicked, this, &Idatag_context_view::context_menu_pass);
+
+	this->sc_cancel = new QShortcut(Qt::Key_Escape, this);
+	this->connect(this->sc_cancel, &QShortcut::activated, this, &Idatag_context_view::context_menu_pass);
+
+	this->sc_ok = new QShortcut(Qt::Key_Enter, this);
+	this->connect(this->sc_ok, &QShortcut::activated, this, &Idatag_context_view::context_menu_add_tags);
+}
+
+void Idatag_context_view::context_menu_add_tags()
+{
+	QString qinput = this->tags_input->text();
+	std::string input = qinput.toStdString();
+
+	if (input.find_first_not_of(" ") != std::string::npos)
+	{
+		std::string user = myConfiguration->get_username_configuration();
+		std::string feeder = user;
+		for (const auto & offset : this->offset_selected)
+		{
+			QStringList labels = this->tags_input->text().split(" ");
+			for (const auto & qlabel : labels)
+			{
+				std::string label = qlabel.toStdString();
+				Tag tag = Tag(label, feeder);
+
+				offset->add_tag(tag);
+
+				std::string autofeed = "IDATag";
+				Tag tag_user = Tag(user, autofeed);
+				offset->add_tag(tag_user);
+
+				myModel->add_feeder(feeder);
+				myModel->add_feeder(autofeed);
+			}
+		}
+	}
+	this->close();
+}
+
+
+void Idatag_context_view::context_menu_pass()
+{
+	this->close();
+}
+
+void Idatag_context_disas_func::context_menu_add_tags()
+{
+	QString qinput = this->tags_input->text();
+	std::string input = qinput.toStdString();
+	this->offset = myModel->get_offset_byrva(this->rva);
+
+	if (this->offset == NULL)
+	{
+		msg("\n[IDATag] Error retrieving referenced offset");
+		this->close();
+	}
+
+	if (input.find_first_not_of(" ") != std::string::npos)
+	{
+		QStringList labels = this->tags_input->text().split(" ");
+		std::string user = myConfiguration->get_username_configuration();
+		std::string feeder = user;
+		for (const auto & qlabel : labels)
+		{
+			std::string label = qlabel.toStdString();
+			Tag tag = Tag(label, feeder);
+
+			this->offset->add_tag(tag);
+
+			std::string autofeed = "IDATag";
+			Tag tag_user = Tag(user, autofeed);
+			this->offset->add_tag(tag_user);
+
+			myModel->add_feeder(feeder);
+			myModel->add_feeder(autofeed);
+		}
+	}
+	this->close();
+}
+
+void Idatag_context_disas_func::context_menu_pass()
+{
+	this->close();
+}
+
+Idatag_context_disas_func::Idatag_context_disas_func(action_activation_ctx_t* ctx)
+{
+	this->ctx = ctx;
+	this->setAttribute(Qt::WA_DeleteOnClose);
+	this->menu_layout = new QGridLayout(this);
+	this->setWindowTitle("[IDATag] Add tags on function...");
+	this->btn_menu_ok = new QPushButton("OK");
+	this->btn_menu_cancel = new QPushButton("Cancel");
+
+	this->setModal(true);
+
+	this->tags_input = new QLineEdit();
+
+	char rva_str[20];
+	this->rva = myModel->is_in_func(ctx->cur_ea);
+	if (this->rva == BADADDR) return;
+
+	this->offset = myModel->get_offset_byrva(this->rva);
+	if (this->offset == NULL) return;
+
+	if (myConfiguration->get_address_width_configuration() == 16)
+	{
+		snprintf(rva_str, 19, "0x%016llX", (unsigned long long)rva);
+	}
+	else
+	{
+		snprintf(rva_str, 19, "0x%08llX", (unsigned long long)rva);
+	}
+	this->lbl_rva = new QLabel(rva_str);
+	std::string sname = this->offset->get_name();
+	if (sname.empty()) sname = "";
+	else {
+		this->lbl_name = new QLabel(sname.c_str());
+	}
+
+	this->menu_layout->addWidget(lbl_rva, 0, 0);
+	this->menu_layout->addWidget(lbl_name, 0, 1);
+
+	this->menu_layout->addWidget(tags_input, 1, 0, 1, 2);
+
+	this->menu_layout->addWidget(btn_menu_ok, 2, 0);
+	this->menu_layout->addWidget(btn_menu_cancel, 2, 1);
+
+	this->connect(btn_menu_ok, &QPushButton::clicked, this, &Idatag_context_disas_func::context_menu_add_tags);
+	this->connect(btn_menu_cancel, &QPushButton::clicked, this, &Idatag_context_disas_func::context_menu_pass);
+
+	this->sc_cancel = new QShortcut(Qt::Key_Escape, this);
+	this->connect(this->sc_cancel, &QShortcut::activated, this, &Idatag_context_disas_func::context_menu_pass);
+
+	this->sc_ok = new QShortcut(Qt::Key_Return, this);
+	this->connect(this->sc_ok, &QShortcut::activated, this, &Idatag_context_disas_func::context_menu_add_tags);
 }

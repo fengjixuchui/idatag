@@ -11,7 +11,7 @@
 #include "configuration.hpp"
 #include "hooks_disas.hpp"
 
-constexpr const char * version = "0.0.1";
+constexpr const char * version = "0.3";
 constexpr const char* authors = "Arnaud Gatignol @ Thalium";
 constexpr const char* date = "2019";
 constexpr const char* name = "IDATag";
@@ -27,3 +27,4 @@ Idatag_view* myView;
 Idatag_hook_idb* myHook_IDB;
 Idatag_hook_ui* myHook_UI;
 Idatag_hook_idp* myHook_IDP;
+Idatag_hook_cview* myHook_CView;

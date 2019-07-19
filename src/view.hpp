@@ -43,11 +43,33 @@ public:
 	void keyPressEvent(QKeyEvent *);
 };
 
+class Idatag_context_view : public QDialog {
+	Q_OBJECT
+private:
+	QGridLayout* menu_layout;
+	QPushButton* btn_menu_ok;
+	QPushButton* btn_menu_cancel;
+	QLineEdit* tags_input;
+	QLabel* lbl_rva;
+	std::vector<Offset*> offset_selected;
+	QLabel* lbl_selection;
+	QLabel* lbl_name;
+
+	QShortcut* sc_ok;
+	QShortcut* sc_cancel;
+
+public:
+	Idatag_context_view(QModelIndexList);
+	void context_menu_add_tags();
+	void context_menu_pass();
+};
+
 class Idatag_view : public QWidget{
 	Q_OBJECT
 private:
 	Idatag_model*		myModel;
 	Idatag_proxy*		myProxy;
+	QItemSelectionModel* selectionModel;
 	Idatag_configuration* myConfiguration;
 	QWidget*			parent;
 	Idatag_table*			tb;
@@ -59,13 +81,21 @@ private:
 	QShortcut*			sc_filter;
 	QGridLayout*		layout;
 
+	QLabel*				hfuncl;
+	QLabel*				hoffsetl;
+	QLabel*				funcl;
+	QLabel*				offsetl;
+
 	QWidget* wnd_filter_feeder;
 	QGridLayout* feeder_filter_layout;
 	QVBoxLayout* feeder_layout;
 	QPushButton* btn_filter_feeder_ok;
 	QPushButton* btn_filter_feeder_cancel;
 
+	Idatag_context_view* wnd_context_view;
+
 	QMenu* contextual_menu;
+	QAction* add_tag;
 	QAction* export_tag;
 	QAction* import_tag;
 	QAction* filter_feeder;
@@ -88,11 +118,14 @@ public:
 
 	void customMenuRequested(QPoint pos);
 	void createActions();
+	void OnAction_add_tag();
 	void OnAction_export_tag();
 	void OnAction_import_tag();
 	void OnAction_filter_feeder();
 	void OnAction_paint_tag();
 	void OnAction_reset_filter();
+
+	void set_tag_helper(std::string, std::string);
 };
 
 extern Idatag_view* myView;
@@ -115,6 +148,29 @@ private:
 
 public:
 	Idatag_context_disas(action_activation_ctx_t*);
+
+	void context_menu_add_tags();
+	void context_menu_pass();
+};
+
+class Idatag_context_disas_func : public QDialog {
+	Q_OBJECT
+private:
+	action_activation_ctx_t* ctx;
+	QGridLayout* menu_layout;
+	QPushButton* btn_menu_ok;
+	QPushButton* btn_menu_cancel;
+	QLineEdit* tags_input;
+	uint64_t rva;
+	QLabel* lbl_rva;
+	QLabel* lbl_name;
+	Offset* offset;
+
+	QShortcut* sc_ok;
+	QShortcut* sc_cancel;
+
+public:
+	Idatag_context_disas_func(action_activation_ctx_t*);
 
 	void context_menu_add_tags();
 	void context_menu_pass();
